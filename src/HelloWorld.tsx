@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { type GPUResource, useGPUResource } from "./WebGPUCanvas";
 import fragWGSL from "./shaders/red.flag.wgsl";
 import triangleVertWGSL from "./shaders/triangle.vert.wgsl";
@@ -27,7 +27,6 @@ const createUpdater = (
 		passEncoder.draw(3, 1, 0, 0);
 		passEncoder.end();
 		const commandBuffer = commandEncoder.finish();
-
 		device.queue.submit([commandBuffer]);
 	};
 	return update;
@@ -64,7 +63,6 @@ const setupPipeline = ({ context, device }: GPUResource) => {
 			topology: "triangle-list",
 		},
 	});
-
 	return pipeline;
 };
 
@@ -76,7 +74,8 @@ const useFrame = (callback: () => void, fps: number) => {
 		if (typeof refId.current === "number") {
 			clearInterval(refId.current);
 		}
-		const id = setInterval(callback, timeoutMs);
+		refId.current = undefined;
+		const id = setInterval(() => callback(), timeoutMs);
 		refId.current = id;
 		return () => {
 			if (typeof refId.current === "number") {
@@ -89,14 +88,12 @@ const useFrame = (callback: () => void, fps: number) => {
 export const HelloWorld = () => {
 	const resource = useGPUResource();
 	const pipeline = useMemo(() => setupPipeline(resource), [resource]);
-	const update = useCallback(() => {
-		return createUpdater(resource, pipeline);
-	}, [resource, pipeline]);
+	const update = useMemo(
+		() => createUpdater(resource, pipeline),
+		[resource, pipeline],
+	);
 
 	useFrame(() => update(), 30);
 
-	useEffect(() => {
-		requestAnimationFrame(update);
-	});
 	return null;
 };
