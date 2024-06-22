@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
-import { type GPUResource, useGPUResource } from "./WebGPUCanvas";
+import { useMemo } from "react";
+import { useFrame } from "../../../hooks/useFrame";
+import { type GPUResource, useGPUResource } from "../../WebGPUCanvas";
 import fragWGSL from "./shaders/red.flag.wgsl";
 import triangleVertWGSL from "./shaders/triangle.vert.wgsl";
 
@@ -66,25 +67,6 @@ const setupPipeline = ({ context, device }: GPUResource) => {
 	return pipeline;
 };
 
-const useFrame = (callback: () => void, fps: number) => {
-	const refId = useRef<number | undefined>(undefined);
-
-	useEffect(() => {
-		const timeoutMs = 1_000 / fps;
-		if (typeof refId.current === "number") {
-			clearInterval(refId.current);
-		}
-		refId.current = undefined;
-		const id = setInterval(() => callback(), timeoutMs);
-		refId.current = id;
-		return () => {
-			if (typeof refId.current === "number") {
-				clearInterval(id);
-			}
-		};
-	}, [fps, callback]);
-};
-
 export const HelloWorld = () => {
 	const resource = useGPUResource();
 	const pipeline = useMemo(() => setupPipeline(resource), [resource]);
@@ -93,7 +75,7 @@ export const HelloWorld = () => {
 		[resource, pipeline],
 	);
 
-	useFrame(() => update(), 30);
+	useFrame(update, 30);
 
 	return null;
 };

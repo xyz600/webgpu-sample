@@ -1,5 +1,5 @@
-import { HelloWorld } from "./HelloWorld";
-import { WebGPUCanvas } from "./WebGPUCanvas";
+import { WebGPUCanvas } from "./components/WebGPUCanvas";
+import { HelloWorld } from "./components/shader/hello-world";
 
 function App() {
 	return (
