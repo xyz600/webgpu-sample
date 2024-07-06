@@ -1,1 +1,1 @@
-export type ShaderExampleType = "Hello World";
+export type ShaderExampleType = "Hello World" | "Canvas Histgram" | "MatMul";

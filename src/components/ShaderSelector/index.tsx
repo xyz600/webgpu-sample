@@ -16,6 +16,14 @@ const shaderExampleList: ShaderExampleItem[] = [
 		name: "Hello World",
 		type: "Hello World",
 	},
+	{
+		name: "Canvas Histgram",
+		type: "Canvas Histgram",
+	},
+	{
+		name: "Matrix Multipulation",
+		type: "MatMul",
+	},
 ];
 
 export const ShaderSelector = ({
