@@ -32,21 +32,20 @@ fn matmul(
     for (var k: u32 = 0; k < matrixSize; k += SubMatrixSize) {
         // 1. cache blocking
         {
-            let ly = lid.y * UnitSize;
-            let lx = lid.x * UnitSize;
+            let lx = lindex % SubMatrixSize;
 
-            let gy1 = wid.y * SubMatrixSize + ly;
-            let gy2 = k + ly; 
-
-            let gx1 = k + lx; 
+            let gx1 = k + lx;
             let gx2 = wid.x * SubMatrixSize + lx;
 
-            // fixme: cache access pattern
-            for (var lly: u32 = 0; lly < UnitSize; lly += 1) {
-                for (var llx: u32 = 0; llx < UnitSize; llx += 1) {
-                    cache_in1[(ly + lly) * SubMatrixSize + lx + llx] = in1[(gy1 + lly) * matrixSize + gx1 + llx];
-                    cache_in2[(ly + lly) * SubMatrixSize + lx + llx] = in2[(gy2 + lly) * matrixSize + gx2 + llx];
-                }
+            let ly_offset = lindex / SubMatrixSize;
+            let ly_step = WorkgroupSize2 / SubMatrixSize;
+
+            for (var ly = ly_offset; ly < SubMatrixSize; ly += ly_step) {
+                let gy1 = wid.y * SubMatrixSize + ly;
+                let gy2 = k + ly;
+
+                cache_in1[ly * SubMatrixSize + lx] = in1[gy1 * matrixSize + gx1];
+                cache_in2[ly * SubMatrixSize + lx] = in2[gy2 * matrixSize + gx2];
             }
         }
         workgroupBarrier();
@@ -76,15 +75,42 @@ fn matmul(
     }
 
     // 3. store global buffer
-    {
-        let gy = wid.y * SubMatrixSize + lid.y * UnitSize;
-        let gx = wid.x * SubMatrixSize + lid.x * UnitSize;
+    // {
+    //     let gy = wid.y * SubMatrixSize + lid.y * UnitSize;
+    //     let gx = wid.x * SubMatrixSize + lid.x * UnitSize;
 
-        // fixme: cache access pattern
+    //     for (var lly: u32 = 0; lly < UnitSize; lly += 1) {
+    //         for (var llx: u32 = 0; llx < UnitSize; llx += 1) {
+    //             out[(gy + lly) * matrixSize + gx + llx] = l_out[lly * UnitSize + llx];
+    //         }
+    //     }
+    // }
+    // return;
+
+    // 3. store cache
+    {
+        let ly = lid.y * UnitSize;
+        let lx = lid.x * UnitSize;
+
         for (var lly: u32 = 0; lly < UnitSize; lly += 1) {
             for (var llx: u32 = 0; llx < UnitSize; llx += 1) {
-                out[(gy + lly) * matrixSize + gx + llx] = l_out[lly * UnitSize + llx];
+                cache_out[(ly + lly) * SubMatrixSize + lx + llx] = l_out[lly * UnitSize + llx];
             }
+        }
+    }
+    workgroupBarrier();
+
+    // 4. store global buffer
+    {
+        let lx = lindex % SubMatrixSize;
+        let gx = wid.x * SubMatrixSize + lx;
+
+        let ly_offset = lindex / SubMatrixSize;
+        let ly_step = WorkgroupSize2 / SubMatrixSize;
+
+        for (var ly = ly_offset; ly < SubMatrixSize; ly += ly_step) {
+            let gy = wid.y * SubMatrixSize + ly;
+            out[gy * matrixSize + gx] = cache_out[ly * SubMatrixSize + lx];
         }
     }
 }

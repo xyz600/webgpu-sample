@@ -1,4 +1,3 @@
-import { DebugDumper } from "../../../utils/dumper";
 import { GPUTimeMeasure } from "../../../utils/gpu-timer";
 
 const FLOAT32_BYTE_SIZE: number = 4;
