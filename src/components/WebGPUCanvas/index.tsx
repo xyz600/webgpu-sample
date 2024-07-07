@@ -23,7 +23,16 @@ const getGPUResource = async (
 	if (adapter === null) {
 		throw new Error("cannot get gpu adapter");
 	}
-	const device = await adapter.requestDevice();
+	const canTimestamp = adapter.features.has("timestamp-query");
+	for (const feature of adapter.features) {
+		console.log(feature);
+	}
+	if (!canTimestamp) {
+		console.warn("timestamp-query is not supported");
+	}
+	const device = await adapter.requestDevice({
+		requiredFeatures: ["timestamp-query"],
+	});
 	const context = canvas.getContext("webgpu") as GPUCanvasContext;
 
 	return { device, context };
