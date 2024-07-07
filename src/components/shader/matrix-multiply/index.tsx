@@ -10,7 +10,7 @@ import { getGPUDevice } from "../../../utils/device";
 import { useMemo, useState } from "react";
 
 export const MatrixMultipulation = () => {
-	const matrixSize = 1024;
+	const matrixSize = 2048;
 	const problem = useMemo(() => createProblem(matrixSize), []);
 
 	const [cpuResult, setCpuResult] = useState<Float32Array | null>();

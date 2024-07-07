@@ -171,8 +171,9 @@ export class GPUMatmulClient {
         console.log(`matmul elapsed: ${matmulElapsed} [us]`);
 
         const debugResult = await this.debugDumper.read();
-        for (let y = 0; y < 10; y += 1) {
-            const row = Array.from(debugResult.slice(y * this.problem.matrixSize, y * this.problem.matrixSize + 10));
+        const size = 64;
+        for (let y = 0; y < size; y += 1) {
+            const row = Array.from(debugResult.slice(y * this.problem.matrixSize, y * this.problem.matrixSize + size));
             const rowStr = row.map((v) => `${v.toFixed(3)}`).join(", ");
             console.log(`${rowStr}`);
         }

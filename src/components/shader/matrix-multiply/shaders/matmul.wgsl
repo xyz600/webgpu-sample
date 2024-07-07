@@ -12,6 +12,7 @@ const UnitSize2: u32 = UnitSize * UnitSize;
 
 var<workgroup> cache_in1: array<f32, SubMatrixSize2>;
 var<workgroup> cache_in2: array<f32, SubMatrixSize2>;
+var<workgroup> cache_out: array<f32, SubMatrixSize2>;
 
 override matrixSize: u32;
 
@@ -30,42 +31,27 @@ fn matmul(
     var l_in2 = array<f32, UnitSize2>();
 
     for (var k: u32 = 0; k < matrixSize; k += SubMatrixSize) {
-        
         // 1. cache blocking
         {
-            let lx: u32 = lindex % SubMatrixSize;
-            let b_ly: u32 = lindex / SubMatrixSize;
-            let y_step: u32 = WorkgroupSize2 / SubMatrixSize;
+            let ly = lid.y * UnitSize;
+            let lx = lid.x * UnitSize;
 
-            let gx1: u32 = k * SubMatrixSize + lx;
-            for (var ly: u32 = b_ly; ly < SubMatrixSize; ly += y_step) {
-                let gy1: u32 = wid.y * SubMatrixSize + ly;
-                cache_in1[ly * SubMatrixSize + lx] = in1[gy1 * matrixSize + gx1];
-            }
+            let gy1 = wid.y * SubMatrixSize + ly;
+            let gy2 = k + ly; 
 
-            let gx2: u32 = wid.x * SubMatrixSize + lx;
-            for (var ly: u32 = b_ly; ly < SubMatrixSize; ly += y_step) {
-                let gy2: u32 = k * SubMatrixSize + ly;
-                cache_in2[ly * SubMatrixSize + lx] = in2[gy2 * matrixSize + gx2];
-            }
-        }
-        workgroupBarrier();
+            let gx1 = k + lx; 
+            let gx2 = wid.x * SubMatrixSize + lx;
 
-        if (k > 0) {
-            let ly: u32 = lid.y * UnitSize;
-            let lx: u32 = lid.x * UnitSize;
-
-            let gy = wid.y * SubMatrixSize + ly;
-            let gx = wid.x * SubMatrixSize + lx;
-
+            // fixme: cache access pattern
             for (var lly: u32 = 0; lly < UnitSize; lly += 1) {
                 for (var llx: u32 = 0; llx < UnitSize; llx += 1) {
-                    debug_dump[(gy + lly) * matrixSize + gx + llx] = cache_in1[(ly + lly) * SubMatrixSize + lx + llx];
+                    cache_in1[(ly + lly) * SubMatrixSize + lx + llx] = in1[(gy1 + lly) * matrixSize + gx1 + llx];
+                    cache_in2[(ly + lly) * SubMatrixSize + lx + llx] = in2[(gy2 + lly) * matrixSize + gx2 + llx];
                 }
             }
-
-            break;
+            debug_dump[0] = 0.0;
         }
+        workgroupBarrier();
 
         // 2. register blocking
         for (var kk: u32 = 0; kk < SubMatrixSize; kk += UnitSize) {
@@ -89,25 +75,12 @@ fn matmul(
             }
         }
         workgroupBarrier();
-        if (k == 0) {
-            for (var i: u32 = 0; i < UnitSize; i += 1) {
-                for (var j: u32 = 0; j < UnitSize; j += 1) {
-                    l_out[i * UnitSize + j] = 0;
-                }
-            }            
-        }
-        if (k > 0) {
-            break;
-        }
     }
 
-    // 3. store global result
+    // 3. store global buffer
     {
-        let ly = lid.y * UnitSize;
-        let lx = lid.x * UnitSize;
-
-        let gy = wid.y * SubMatrixSize + ly;
-        let gx = wid.x * SubMatrixSize + lx;
+        let gy = wid.y * SubMatrixSize + lid.y * UnitSize;
+        let gx = wid.x * SubMatrixSize + lid.x * UnitSize;
 
         // fixme: cache access pattern
         for (var lly: u32 = 0; lly < UnitSize; lly += 1) {
