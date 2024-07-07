@@ -1,7 +1,6 @@
 @group(0) @binding(0) var<storage, read> in1: array<f32>;
 @group(0) @binding(1) var<storage, read> in2: array<f32>;
 @group(0) @binding(2) var<storage, read_write> out: array<f32>;
-@group(0) @binding(3) var<storage, read_write> debug_dump: array<f32>;
 
 const WorkgroupSize: u32 = 8;
 const WorkgroupSize2: u32 = WorkgroupSize * WorkgroupSize;
@@ -49,7 +48,6 @@ fn matmul(
                     cache_in2[(ly + lly) * SubMatrixSize + lx + llx] = in2[(gy2 + lly) * matrixSize + gx2 + llx];
                 }
             }
-            debug_dump[0] = 0.0;
         }
         workgroupBarrier();
 
