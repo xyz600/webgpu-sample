@@ -2,7 +2,6 @@ import { HStack, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { ShaderSelector } from "./components/ShaderSelector";
 import type { ShaderExampleType } from "./components/ShaderSelector/types";
-import { WebGPUCanvas } from "./components/WebGPUCanvas";
 import { CanvasHistgram } from "./components/shader/canvas-histgram";
 import { HelloWorld } from "./components/shader/hello-world";
 import { MatrixMultipulation } from "./components/shader/matrix-multiply";
@@ -25,18 +24,16 @@ function App() {
 		useState<ShaderExampleType>("Hello World");
 
 	return (
-		<VStack>
-			<Heading>WebGPU Example</Heading>
-			<HStack>
-				<ShaderSelector
-					currentSelection={shaderType}
-					onSelectionChanged={setShaderType}
-				/>
-				<WebGPUCanvas id="webgpu-canvas">
-					<CanvasExample type={shaderType} />
-				</WebGPUCanvas>
-			</HStack>
-		</VStack>
+		<HStack h="100vw" height="100vh">
+			<ShaderSelector
+				currentSelection={shaderType}
+				onSelectionChanged={setShaderType}
+			/>
+			<VStack height="100%" width="100%">
+				<Heading>WebGPU Example</Heading>
+				<CanvasExample type={shaderType} />
+			</VStack>
+		</HStack>
 	);
 }
 

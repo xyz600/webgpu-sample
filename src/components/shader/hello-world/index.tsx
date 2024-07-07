@@ -1,11 +1,13 @@
-import { useMemo } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useFrame } from "../../../hooks/useFrame";
-import { type GPUResource, useGPUResource } from "../../WebGPUCanvas";
 import fragWGSL from "./shaders/red.flag.wgsl";
 import triangleVertWGSL from "./shaders/triangle.vert.wgsl";
+import { Button, VStack } from "@chakra-ui/react";
+import { getGPUDevice } from "../../../utils/device";
 
 const createUpdater = (
-	{ device, context }: GPUResource,
+	device: GPUDevice,
+	context: GPUCanvasContext,
 	pipeline: GPURenderPipeline,
 ) => {
 	const update = () => {
@@ -33,7 +35,7 @@ const createUpdater = (
 	return update;
 };
 
-const setupPipeline = ({ context, device }: GPUResource) => {
+const setupPipeline = (device: GPUDevice, context: GPUCanvasContext) => {
 	const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({
 		device,
@@ -67,15 +69,54 @@ const setupPipeline = ({ context, device }: GPUResource) => {
 	return pipeline;
 };
 
-export const HelloWorld = () => {
-	const resource = useGPUResource();
-	const pipeline = useMemo(() => setupPipeline(resource), [resource]);
-	const update = useMemo(
-		() => createUpdater(resource, pipeline),
-		[resource, pipeline],
-	);
+const HelloWorldInner = ({
+	gpuContext,
+}: { gpuContext: GPUCanvasContext | undefined }) => {
+	const [update, setUpdate] = useState<() => void>(() => {
+		return () => {};
+	});
+
+	const triggerRender = async () => {
+		if (!gpuContext) {
+			return;
+		}
+		const device = await getGPUDevice();
+		const pipeline = setupPipeline(device, gpuContext);
+		const update = createUpdater(device, gpuContext, pipeline);
+
+		setUpdate(() => {
+			return update;
+		});
+	};
 
 	useFrame(update, 30);
 
-	return null;
+	return (
+		<VStack>
+			<Button onClick={triggerRender}>描画</Button>
+		</VStack>
+	);
+};
+
+export const HelloWorld = () => {
+	const refCanvas = useRef<HTMLCanvasElement | null>();
+	const [context, setContext] = useState<GPUCanvasContext>();
+	const callbackRef = useCallback(async (node: HTMLCanvasElement | null) => {
+		refCanvas.current = node;
+		if (!node) {
+			setContext(undefined);
+			return;
+		}
+		const context = node.getContext("webgpu");
+		if (context) {
+			setContext(context as GPUCanvasContext);
+		}
+	}, []);
+
+	return (
+		<VStack>
+			<canvas height="800px" width="1200px" ref={callbackRef} />
+			<HelloWorldInner gpuContext={context} />
+		</VStack>
+	);
 };
