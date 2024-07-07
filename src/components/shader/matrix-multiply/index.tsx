@@ -10,7 +10,7 @@ import { getGPUDevice } from "../../../utils/device";
 import { useMemo, useState } from "react";
 
 export const MatrixMultipulation = () => {
-	const matrixSize = 2048;
+	const matrixSize = 1024;
 	const problem = useMemo(() => createProblem(matrixSize), []);
 
 	const [cpuResult, setCpuResult] = useState<Float32Array | null>();
@@ -24,6 +24,7 @@ export const MatrixMultipulation = () => {
 		const cpuStop = performance.now();
 		const elapsed = cpuStop - cpuStart;
 		console.log(`CPU calculation done in ${elapsed} ms`);
+		console.log(cpuResult.slice(0, 10));
 		setCpuResult(cpuResult);
 	};
 
@@ -39,6 +40,7 @@ export const MatrixMultipulation = () => {
 		const elapsed = gpuStop - gpuStart;
 		console.log(`GPU calculation done in ${elapsed} ms`);
 		gpuClient.destroy();
+		console.log(gpuResult.slice(0, 10));
 		setGpuResult(gpuResult);
 	};
 

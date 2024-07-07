@@ -1,3 +1,4 @@
+import { DebugDumper } from "../../../utils/dumper";
 import { GPUTimeMeasure } from "../../../utils/gpu-timer";
 
 const FLOAT32_BYTE_SIZE: number = 4;
@@ -72,6 +73,7 @@ export class GPUMatmulClient {
     timer: GPUTimeMeasure;
     device: GPUDevice;
     problem: ProblemResource;
+    debugDumper: DebugDumper;
 
     constructor(device: GPUDevice, matmulShader: string, problem: ProblemResource) {
         this.problem = problem;
@@ -106,6 +108,8 @@ export class GPUMatmulClient {
             size: bufferSize,
             usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
         });
+        this.debugDumper = new DebugDumper(device, "matmul exec", matrixSize * matrixSize);
+
         this.pipeline = device.createComputePipeline({
             label: "matmul calculation",
             layout: "auto",
@@ -123,6 +127,7 @@ export class GPUMatmulClient {
                 { binding: 0, resource: { buffer: this.inputBuffer1 } },
                 { binding: 1, resource: { buffer: this.inputBuffer2 } },
                 { binding: 2, resource: { buffer: this.outputBuffer } },
+                this.debugDumper.getBindingGroup(3),
             ]
         });
         this.timer = new GPUTimeMeasure(device, "matmul exec");
@@ -132,14 +137,17 @@ export class GPUMatmulClient {
         const encoder = this.device.createCommandEncoder({
             label: "compute builtin encoder",
         });
-        this.timer.setupMeasureCommand(encoder, (encoder) => {
-            const pass = encoder.beginComputePass({ label: "compute builtin pass" });
-            pass.setPipeline(this.pipeline);
-            pass.setBindGroup(0, this.bindingGroups);
-            const wgX = this.problem.matrixSize / 16;
-            const wgY = this.problem.matrixSize / 16;
-            pass.dispatchWorkgroups(wgX, wgY, 1);
-            pass.end();
+        const subMatrixSize = 32;
+        this.debugDumper.setup(encoder, (encoder) => {
+            this.timer.setup(encoder, (encoder) => {
+                const pass = encoder.beginComputePass({ label: "compute builtin pass" });
+                pass.setPipeline(this.pipeline);
+                pass.setBindGroup(0, this.bindingGroups);
+                const wgX = this.problem.matrixSize / subMatrixSize;
+                const wgY = this.problem.matrixSize / subMatrixSize;
+                pass.dispatchWorkgroups(wgX, wgY, 1);
+                pass.end();
+            });
         });
         const bufferSize =
             this.problem.matrixSize * this.problem.matrixSize * FLOAT32_BYTE_SIZE;
@@ -162,6 +170,14 @@ export class GPUMatmulClient {
         const matmulElapsed = await this.timer.elapsedTimeUs();
         console.log(`matmul elapsed: ${matmulElapsed} [us]`);
 
+        const debugResult = await this.debugDumper.read();
+        for (let y = 0; y < 10; y += 1) {
+            const row = Array.from(debugResult.slice(y * this.problem.matrixSize, y * this.problem.matrixSize + 10));
+            const rowStr = row.map((v) => `${v.toFixed(3)}`).join(", ");
+            console.log(`${rowStr}`);
+        }
+        console.log("average of debug: ", debugResult.reduce((acc, v) => acc + v, 0) / (this.problem.matrixSize * this.problem.matrixSize));
+
         return result;
     }
 
@@ -171,5 +187,6 @@ export class GPUMatmulClient {
         this.outputBuffer.destroy();
         this.resultBuffer.destroy();
         this.timer.destroy();
+        this.debugDumper.destroy();
     }
 }

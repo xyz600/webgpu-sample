@@ -29,7 +29,7 @@ export class GPUTimeMeasure {
         });
     }
 
-    setupMeasureCommand(encoder: GPUCommandEncoder, func: (encoder: GPUCommandEncoder) => void) {
+    setup(encoder: GPUCommandEncoder, func: (encoder: GPUCommandEncoder) => void) {
         encoder.writeTimestamp(this.querySet, 0);
         func(encoder);
         encoder.writeTimestamp(this.querySet, 1);
