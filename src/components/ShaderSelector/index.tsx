@@ -56,7 +56,6 @@ export const ShaderSelector = ({
 	return (
 		<Box
 			as="nav"
-			pos="fixed"
 			top="0"
 			left="0"
 			h="100%"

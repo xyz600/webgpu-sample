@@ -22,9 +22,11 @@ export const createProblem = (matrixSize: number): ProblemResource => {
     };
 };
 
-export const checkDifference = (a: Float32Array, b: Float32Array): number => {
+export const checkDifference = (a: Float32Array | null | undefined, b: Float32Array | null | undefined): number | undefined => {
+    if (!a || !b) {
+        return undefined;
+    }
     let diff = 0;
-    console.log(a.length, b.length);
     for (let idx = 0; idx < a.length; idx += 1) {
         diff += Math.abs(a[idx] - b[idx]);
     }
@@ -109,6 +111,9 @@ export class GPUMatmulClient {
             layout: "auto",
             compute: {
                 module,
+                constants: {
+                    matrixSize: problem.matrixSize,
+                }
             },
         });
         this.bindingGroups = device.createBindGroup({
@@ -118,7 +123,7 @@ export class GPUMatmulClient {
                 { binding: 0, resource: { buffer: this.inputBuffer1 } },
                 { binding: 1, resource: { buffer: this.inputBuffer2 } },
                 { binding: 2, resource: { buffer: this.outputBuffer } },
-            ],
+            ]
         });
         this.timer = new GPUTimeMeasure(device, "matmul exec");
     }

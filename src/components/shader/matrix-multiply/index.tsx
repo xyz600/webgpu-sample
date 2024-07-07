@@ -1,5 +1,3 @@
-import { useEffect, useRef } from "react";
-import { useGPUResource } from "../../WebGPUCanvas";
 import matmulShader from "./shaders/matmul.wgsl";
 import {
 	CPUMatmulClient,
@@ -7,47 +5,57 @@ import {
 	checkDifference,
 	createProblem,
 } from "./client";
+import { Button, HStack } from "@chakra-ui/react";
+import { getGPUDevice } from "../../../utils/device";
+import { useMemo, useState } from "react";
 
 export const MatrixMultipulation = () => {
-	const deviceResource = useGPUResource();
-	const matrixSize = 1024;
+	const matrixSize = 2048;
+	const problem = useMemo(() => createProblem(matrixSize), []);
 
-	const refSubmitted = useRef<boolean>(false);
+	const [cpuResult, setCpuResult] = useState<Float32Array | null>();
+	const [gpuResult, setGpuResult] = useState<Float32Array | null>();
 
-	useEffect(() => {
-		if (refSubmitted.current) {
-			return;
-		}
-		refSubmitted.current = true;
-		console.log("creating problem...");
-		const problem = createProblem(matrixSize);
-
-		console.log("creating CPU calculation...");
+	const triggerCPU = () => {
 		const cpuClient = new CPUMatmulClient(problem);
 		const cpuStart = performance.now();
+		console.log("creating CPU calculation...");
 		const cpuResult = cpuClient.calculate();
 		const cpuStop = performance.now();
 		const elapsed = cpuStop - cpuStart;
 		console.log(`CPU calculation done in ${elapsed} ms`);
+		setCpuResult(cpuResult);
+	};
+
+	const triggerGPU = async () => {
+		const device = await getGPUDevice();
+		console.log("creating problem...");
 
 		console.log("creating GPU calculation...");
-		(async () => {
-			const gpuStart = performance.now();
-			const gpuClient = new GPUMatmulClient(
-				deviceResource.device,
-				matmulShader,
-				problem,
-			);
-			const gpuResult = await gpuClient.calculate();
-			const gpuStop = performance.now();
-			const elapsed = gpuStop - gpuStart;
-			console.log(`GPU calculation done in ${elapsed} ms`);
-			gpuClient.destroy();
+		const gpuStart = performance.now();
+		const gpuClient = new GPUMatmulClient(device, matmulShader, problem);
+		const gpuResult = await gpuClient.calculate();
+		const gpuStop = performance.now();
+		const elapsed = gpuStop - gpuStart;
+		console.log(`GPU calculation done in ${elapsed} ms`);
+		gpuClient.destroy();
+		setGpuResult(gpuResult);
+	};
 
-			const averageDiff = checkDifference(cpuResult, gpuResult);
-			console.log("average diff: ", averageDiff);
-		})();
-	}, [deviceResource]);
+	const averageDiff = useMemo(
+		() => checkDifference(cpuResult, gpuResult),
+		[cpuResult, gpuResult],
+	);
+	if (typeof averageDiff === "undefined") {
+		console.log("both calculation are not done yet.");
+	} else {
+		console.log("average diff: ", averageDiff);
+	}
 
-	return null;
+	return (
+		<HStack>
+			<Button onClick={triggerGPU}> GPU 実行</Button>
+			<Button onClick={triggerCPU}> CPU 実行</Button>
+		</HStack>
+	);
 };
