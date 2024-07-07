@@ -66,7 +66,7 @@ fn matmul(
             for (var i: u32 = 0; i < UnitSize; i += 1) {
                 for (var kkk: u32 = 0; kkk < UnitSize; kkk += 1) {
                     for (var j: u32 = 0; j < UnitSize; j += 1) {
-                        l_out[i * UnitSize + j] += l_in1[i * UnitSize + kkk] * l_in2[kkk * UnitSize + j];
+                        l_out[i * UnitSize + j] = fma(l_in1[i * UnitSize + kkk], l_in2[kkk * UnitSize + j], l_out[i * UnitSize + j]);
                     }
                 }
             }
