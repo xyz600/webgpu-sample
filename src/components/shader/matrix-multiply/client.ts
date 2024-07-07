@@ -1,3 +1,5 @@
+import { GPUTimeMeasure } from "../../../utils/gpu-timer";
+
 const FLOAT32_BYTE_SIZE: number = 4;
 
 type ProblemResource = {
@@ -64,9 +66,8 @@ export class GPUMatmulClient {
     inputBuffer1: GPUBuffer;
     inputBuffer2: GPUBuffer;
     outputBuffer: GPUBuffer;
-    queryBuffer: GPUBuffer;
-    queryReadBuffer: GPUBuffer;
     resultBuffer: GPUBuffer;
+    timer: GPUTimeMeasure;
     device: GPUDevice;
     problem: ProblemResource;
 
@@ -103,17 +104,6 @@ export class GPUMatmulClient {
             size: bufferSize,
             usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
         });
-        this.queryBuffer = device.createBuffer({
-            label: "query buffer for timestamp query",
-            size: 8 * 2,
-            usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
-        });
-        this.queryReadBuffer = device.createBuffer({
-            label: "query buffer for timestamp query",
-            size: 8 * 2,
-            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-        });
-
         this.pipeline = device.createComputePipeline({
             label: "matmul calculation",
             layout: "auto",
@@ -130,30 +120,24 @@ export class GPUMatmulClient {
                 { binding: 2, resource: { buffer: this.outputBuffer } },
             ],
         });
+        this.timer = new GPUTimeMeasure(device, "matmul exec");
     }
 
     async calculate(): Promise<Float32Array> {
         const encoder = this.device.createCommandEncoder({
             label: "compute builtin encoder",
         });
-
-        const querySet = this.device.createQuerySet({
-            label: "timestamp query set",
-            type: "timestamp",
-            count: 2,
+        this.timer.setupMeasureCommand(encoder, (encoder) => {
+            const pass = encoder.beginComputePass({ label: "compute builtin pass" });
+            pass.setPipeline(this.pipeline);
+            pass.setBindGroup(0, this.bindingGroups);
+            const wgX = this.problem.matrixSize / 16;
+            const wgY = this.problem.matrixSize / 16;
+            pass.dispatchWorkgroups(wgX, wgY, 1);
+            pass.end();
         });
-
-        encoder.writeTimestamp(querySet, 0);
-        const pass = encoder.beginComputePass({ label: "compute builtin pass" });
-        pass.setPipeline(this.pipeline);
-        pass.setBindGroup(0, this.bindingGroups);
-        const wgX = this.problem.matrixSize / 16;
-        const wgY = this.problem.matrixSize / 16;
-        pass.dispatchWorkgroups(wgX, wgY, 1);
-        pass.end();
         const bufferSize =
             this.problem.matrixSize * this.problem.matrixSize * FLOAT32_BYTE_SIZE;
-        encoder.writeTimestamp(querySet, 1);
         encoder.copyBufferToBuffer(
             this.outputBuffer,
             0,
@@ -161,11 +145,6 @@ export class GPUMatmulClient {
             0,
             bufferSize,
         );
-        encoder.resolveQuerySet(querySet, 0, querySet.count, this.queryBuffer, 0);
-        encoder.copyBufferToBuffer(
-            this.queryBuffer, 0, this.queryReadBuffer, 0, 8 * 2
-        );
-
         const commandBuffer = encoder.finish();
         this.device.queue.submit([commandBuffer]);
 
@@ -175,15 +154,8 @@ export class GPUMatmulClient {
         ).slice();
         this.resultBuffer.unmap();
 
-        // バッファからデータを読み取る
-        await this.queryReadBuffer.mapAsync(GPUMapMode.READ);
-        const arrayBuffer = this.queryReadBuffer.getMappedRange();
-        const timestamps = new BigUint64Array(arrayBuffer);
-
-        // 実行時間を計算
-        const executionTime = (timestamps[1] - timestamps[0]) / BigInt(1000); // ナノ秒をマイクロ秒に変換
-        console.log(`GPUの実行時間: ${executionTime} [us]`);
-        this.queryReadBuffer.unmap();
+        const matmulElapsed = await this.timer.elapsedTimeUs();
+        console.log(`matmul elapsed: ${matmulElapsed} [us]`);
 
         return result;
     }
@@ -193,5 +165,6 @@ export class GPUMatmulClient {
         this.inputBuffer2.destroy();
         this.outputBuffer.destroy();
         this.resultBuffer.destroy();
+        this.timer.destroy();
     }
 }

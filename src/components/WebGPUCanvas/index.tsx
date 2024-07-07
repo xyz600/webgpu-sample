@@ -24,9 +24,6 @@ const getGPUResource = async (
 		throw new Error("cannot get gpu adapter");
 	}
 	const canTimestamp = adapter.features.has("timestamp-query");
-	for (const feature of adapter.features) {
-		console.log(feature);
-	}
 	if (!canTimestamp) {
 		console.warn("timestamp-query is not supported");
 	}
