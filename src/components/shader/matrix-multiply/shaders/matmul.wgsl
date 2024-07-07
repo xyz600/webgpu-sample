@@ -74,19 +74,6 @@ fn matmul(
         workgroupBarrier();
     }
 
-    // 3. store global buffer
-    // {
-    //     let gy = wid.y * SubMatrixSize + lid.y * UnitSize;
-    //     let gx = wid.x * SubMatrixSize + lid.x * UnitSize;
-
-    //     for (var lly: u32 = 0; lly < UnitSize; lly += 1) {
-    //         for (var llx: u32 = 0; llx < UnitSize; llx += 1) {
-    //             out[(gy + lly) * matrixSize + gx + llx] = l_out[lly * UnitSize + llx];
-    //         }
-    //     }
-    // }
-    // return;
-
     // 3. store cache
     {
         let ly = lid.y * UnitSize;

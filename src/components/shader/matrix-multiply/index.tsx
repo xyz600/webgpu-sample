@@ -24,11 +24,6 @@ export const MatrixMultipulation = () => {
 		const cpuStop = performance.now();
 		const elapsed = cpuStop - cpuStart;
 		console.log(`CPU calculation done in ${elapsed} ms`);
-		console.log(
-			"cpu result ave: ",
-			cpuResult.reduce((acc, cur) => acc + cur, 0) / cpuResult.length,
-		);
-		console.log(cpuResult.slice(0, 64));
 		setCpuResult(cpuResult);
 	};
 
@@ -44,11 +39,6 @@ export const MatrixMultipulation = () => {
 		const elapsed = gpuStop - gpuStart;
 		console.log(`GPU calculation done in ${elapsed} ms`);
 		gpuClient.destroy();
-		console.log(
-			"gpu result ave: ",
-			gpuResult.reduce((acc, cur) => acc + cur, 0) / gpuResult.length,
-		);
-		console.log(gpuResult.slice(0, 64));
 		setGpuResult(gpuResult);
 	};
 
