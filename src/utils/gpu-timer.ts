@@ -30,8 +30,10 @@ export class GPUTimeMeasure {
     }
 
     setup(encoder: GPUCommandEncoder, func: (encoder: GPUCommandEncoder) => void) {
+        // @ts-expect-error only chrome is supported
         encoder.writeTimestamp(this.querySet, 0);
         func(encoder);
+        // @ts-expect-error only chrome is supported
         encoder.writeTimestamp(this.querySet, 1);
         encoder.resolveQuerySet(this.querySet, 0, TIMER_COUNT, this.queryBuffer, 0);
         encoder.copyBufferToBuffer(
